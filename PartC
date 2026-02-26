@@ -1,0 +1,136 @@
+import os
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.signal import butter, filtfilt
+from scipy.io import wavfile
+from moviepy import AudioFileClip
+
+# --------------------------------------------------
+# Part C - Frequency Spectrum and Low-Pass Filtering
+# Works with an MP4 audio/video file
+# --------------------------------------------------
+
+# Use the FULL path to your file
+input_file = "/Users/evanday/Desktop/tutorial2/Cafe_with_noise.mp4"
+
+# Check that the file exists before trying to open it
+if not os.path.exists(input_file):
+    raise FileNotFoundError(f"Could not find file: {input_file}")
+
+# 1) Load audio from MP4
+clip = AudioFileClip(input_file)
+
+# Sampling rate from the clip
+fs = clip.fps
+
+# Convert audio to a NumPy array
+x = clip.to_soundarray(fps=fs)
+
+# If stereo, convert to mono by averaging channels
+if len(x.shape) > 1:
+    x = x.mean(axis=1)
+
+# Convert to float
+x = x.astype(float)
+
+# Time axis
+t = np.arange(len(x)) / fs
+
+# 2) Plot noisy signal in time domain
+plt.figure(figsize=(10, 4))
+plt.plot(t, x)
+plt.title("Cafe_with_noise.mp4 - Time Domain")
+plt.xlabel("Time (s)")
+plt.ylabel("Amplitude")
+plt.grid(True)
+plt.tight_layout()
+plt.show()
+
+# 3) Frequency-domain analysis using FFT
+N = len(x)
+X = np.fft.fft(x)
+freqs = np.fft.fftfreq(N, d=1 / fs)
+
+# Keep only positive frequencies
+half = N // 2
+freqs_pos = freqs[:half]
+mag_pos = np.abs(X[:half]) / N
+
+plt.figure(figsize=(10, 4))
+plt.plot(freqs_pos, mag_pos)
+plt.title("Magnitude Spectrum of Cafe_with_noise.mp4")
+plt.xlabel("Frequency (Hz)")
+plt.ylabel("Magnitude")
+plt.grid(True)
+plt.tight_layout()
+plt.show()
+
+# Zoom in on speech range
+plt.figure(figsize=(10, 4))
+plt.plot(freqs_pos, mag_pos)
+plt.xlim(0, 5000)
+plt.title("Magnitude Spectrum (0 to 5 kHz)")
+plt.xlabel("Frequency (Hz)")
+plt.ylabel("Magnitude")
+plt.grid(True)
+plt.tight_layout()
+plt.show()
+
+# 4) Low-pass filter  
+cutoff = 1200   # Hz
+order = 15
+nyquist = fs / 2
+normalized_cutoff = cutoff / nyquist
+
+b, a = butter(order, normalized_cutoff, btype='low')
+y = filtfilt(b, a, x)
+
+# 5) Plot filtered signal in time domain
+plt.figure(figsize=(10, 4))
+plt.plot(t, y)
+plt.title("Filtered Voice Signal - Time Domain")
+plt.xlabel("Time (s)")
+plt.ylabel("Amplitude")
+plt.grid(True)  
+plt.tight_layout()
+plt.show()
+
+# 6) Zoomed-in filtered time-domain plot
+plt.figure(figsize=(10, 4))
+plt.plot(t, y)
+plt.xlim(0, 0.05)
+plt.title("Filtered Voice Signal - Time Domain (Zoomed In)")
+plt.xlabel("Time (s)")
+plt.ylabel("Amplitude")
+plt.grid(True)
+plt.tight_layout()
+plt.show()
+
+# 7) Plot filtered signal spectrum
+Y = np.fft.fft(y)
+magY_pos = np.abs(Y[:half]) / N
+
+plt.figure(figsize=(10, 4))
+plt.plot(freqs_pos, magY_pos)
+plt.xlim(0, 5000)     
+plt.title("Magnitude Spectrum After Low-Pass Filtering")
+plt.xlabel("Frequency (Hz)")
+plt.ylabel("Magnitude")
+plt.grid(True)
+plt.tight_layout()
+plt.show()
+
+# 8) Save filtered result as WAV in the same folder as the input file
+output_file = "/Users/evanday/Desktop/tutorial2/Cafe_voice_filtered.wav"
+
+y_out = y / np.max(np.abs(y))
+y_out = (y_out * 32767).astype(np.int16)
+wavfile.write(output_file, int(fs), y_out)
+
+# Close the clip
+clip.close()
+
+print("Original sampling frequency:", fs, "Hz")
+print("Filtered audio saved as:", output_file)
+
+
